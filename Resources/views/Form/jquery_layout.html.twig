@@ -90,7 +90,7 @@
     <script type="text/javascript">
         jQuery(document).ready(function($) {
             $field = $('#{% if widget != "single_text" %}datepicker_{% endif %}{{ id }}');
-        
+
         {% block genemu_jquerydate_javascript_prototype %}
 
         {% if configs.buttonImage is defined %}
@@ -407,7 +407,7 @@
             {% endif %}
 
             $autocompleter.autocomplete($configs);
-            
+
             {% if configs.minLength is defined and 0 == configs.minLength %}
                 $autocompleter.focus(function() {
                     $(this).autocomplete("search", "");
@@ -577,6 +577,7 @@
 {% spaceless %}
 <script type="text/javascript">
     jQuery(document).ready(function($) {
+        var swfup;
         var $field   = $('#{{ id }}_upload');
         {% block genemu_jqueryimage_javascript_prototype %}
         var $form    = $field.closest('form');
@@ -591,19 +592,39 @@
         var $ratio = 1;
 
         var $configs = $.extend({{ configs|merge({
-            'swf':       asset(configs.swf),
-            'cancelImg': asset(configs.cancelImg),
-            'uploader':  path(configs.script),
-            'queueID':   id ~ '_queue'
+            'flash_url': asset(configs.swf|trim('/')),
+            'upload_url': path(configs.script),
+            'post_params': {},
+            'file_size_limit' : "4 MB",
+            'file_types' : "*.*",
+            'file_types_description' : "Images",
+            'file_upload_limit' : 0,
+            'file_queue_limit' : 1
         })|json_encode|raw }}, {
-            onUploadSuccess: function(file, data, response) {
+            custom_settings : {
+                progressTarget : "fsUploadProgress",
+                cancelButtonId : "btnCancel"
+            },
+
+            {# Button settings #}
+            button_image_url: "",
+            button_width: "100",
+            button_height: "29",
+            button_placeholder_id: "{{ id }}_upload",
+            button_text: '<span class="theFont">Select a logo</span>',
+            button_text_style: ".theFont { font-size: 16; }",
+
+            file_queued_handler: function (e) {
+                swfup.startUpload();
+            },
+            upload_success_handler: function (e, data, resp) {
                 data = jQuery.parseJSON(data);
 
                 if (data.result == '1') {
                     $('#{{ id }}').val(data.file);
 
                     // add if and only if path is relative
-                    if (data.thumbnail.file.search(/^[/\\]/) < 0) {
+                    if (data.thumbnail.file.search(/^[\/\\]/) < 0) {
                         data.thumbnail.file = $basePath + data.thumbnail.file;
                     }
 
@@ -615,7 +636,7 @@
                     alert('Error');
                 }
             },
-            onUploadError: function(file, errorCode, errorMsg, errorString) {
+            upload_error_handler: function (e, data, resp) {
                 alert('error');
             }
         });
@@ -626,12 +647,11 @@
             }
 
             // add if and only if path is relative
-            if (data.thumbnail.file.search(/^[/\\]/) < 0) {
+            if (data.thumbnail.file.search(/^[\/\\]/) < 0) {
                 data.thumbnail.file = $basePath + data.thumbnail.file;
             }
             var $img = new Image();
 
-            console.log(data);
             $($img).load(function() {
                 {% set widthMax = data.thumbnail is defined ? data.thumbnail.width : 500 %}
 
@@ -657,7 +677,6 @@
         }
 
         var checkCoords = function(coords) {
-
             if (coords.w > 0 && coords.h > 0) {
                 $('.crop', $options).fadeIn();
 
@@ -734,7 +753,7 @@
         $options.hide();
     {% endif %}
 
-        $field.uploadify($configs);
+        swfup = new SWFUpload($configs);
         {% endblock %}
     });
 </script>
